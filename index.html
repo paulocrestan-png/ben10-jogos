@@ -1183,17 +1183,17 @@ function loopVilgax(){
 /* =================================================================
    JOGO 13 — BOLICHE DO BALA DE CANHÃO
    ================================================================= */
-let bCv,bCtx,bRAF=null,bState='aim',bAim=0,bAimDir=1,bBall=null,bPins=[],bTotal=0,bDown=0,bImg=null,bWait=0,bRot=0;
+let bCv,bCtx,bRAF=null,bState='aim',bAim=0,bAimDir=1,bBall=null,bPins=[],bTotal=0,bDown=0,bImg=null,bWait=0,bRot=0,bFase=1;
 function iniciaBoliche(){
   bCv=document.getElementById('boliche'); bCtx=bCv.getContext('2d');
   if(!bImg){ bImg=new Image(); bImg.src='img/clean_bala.png'; }
-  bTotal=0; bState='aim'; bAim=0; bAimDir=1; bRot=0;
+  bTotal=0; bState='aim'; bAim=0; bAimDir=1; bRot=0; bFase=1;
   bResetPinos(); bResetBola();
   bCv.onpointerdown=()=>{ if(bState==='aim') bLancar(); };
   if(!bRAF) loopBoliche();
 }
 function paraBoliche(){ if(bRAF){cancelAnimationFrame(bRAF); bRAF=null;} if(bCv)bCv.onpointerdown=null; }
-function bResetPinos(){ bPins=[]; bDown=0; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:150-r*32, vx:0, vy:0, down:false}); } } }
+function bResetPinos(){ bPins=[]; bDown=0; const apex=240-(bFase-1)*25; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:apex-r*32, vx:0, vy:0, down:false}); } } }
 function bResetBola(){ bBall={x:180,y:462,vx:0,vy:0,r:20}; }
 function bLancar(){ const sp=8.5; bBall.vx=Math.sin(bAim)*sp*0.6; bBall.vy=-Math.cos(bAim)*sp; bState='roll'; bip(280,.1); }
 function bFim(){ bState='wait'; bWait=Date.now()+1600; }
@@ -1226,6 +1226,7 @@ function loopBoliche(){
     if(bBall.y<32) bFim();
   } else if(bState==='wait'){ if(Date.now()>bWait){ bTotal+=bDown;
       if(bDown>=10) festa('STRIKE! 🎳'); else if(bDown>=6) toast('UAU! '+bDown+' pinos!'); else bip(440,.1);
+      if(bFase<5){ bFase++; setTimeout(()=>toast('FASE '+bFase+'! mais longe 🎳'), 750); }
       bResetPinos(); bResetBola(); bState='aim'; } }
   // esperando = figura em pé; rolando = vira bola
   if(bState==='roll'){ bBola(bBall.x, bBall.y, bRot, bBall.r); }
@@ -1235,7 +1236,8 @@ function loopBoliche(){
   } else { bBola(bBall.x, bBall.y, 0, bBall.r); }
   // HUD
   bCtx.fillStyle='#fff'; bCtx.font='bold 18px Trebuchet MS'; bCtx.textAlign='left'; bCtx.textBaseline='top'; bCtx.fillText('🎳 '+bTotal,12,6);
-  if(bState==='aim'){ bCtx.textAlign='center'; bCtx.fillText('Toque pra rolar!',180,6); }
+  bCtx.textAlign='right'; bCtx.fillStyle='#bff5a0'; bCtx.fillText('Fase '+bFase+'/5',348,6);
+  if(bState==='aim'){ bCtx.fillStyle='#fff'; bCtx.textAlign='center'; bCtx.fillText('Toque pra rolar!',180,6); }
   bRAF=requestAnimationFrame(loopBoliche);
 }
 function bPino(x,y){ bCtx.fillStyle='#fff'; bCtx.beginPath(); bCtx.moveTo(x,y-15);
