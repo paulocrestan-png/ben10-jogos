@@ -1193,17 +1193,22 @@ function iniciaBoliche(){
   if(!bRAF) loopBoliche();
 }
 function paraBoliche(){ if(bRAF){cancelAnimationFrame(bRAF); bRAF=null;} if(bCv)bCv.onpointerdown=null; }
-function bResetPinos(){ bPins=[]; bDown=0; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:198-r*34, down:false}); } } }
-function bResetBola(){ bBall={x:180,y:452,vx:0,vy:0,r:20}; }
-function bLancar(){ const sp=9; bBall.vx=Math.sin(bAim)*sp*0.6; bBall.vy=-Math.cos(bAim)*sp; bState='roll'; bip(280,.1); }
-function bFim(){ bTotal+=bDown; bState='wait'; bWait=Date.now()+1100;
-  if(bDown>=10) festa('STRIKE! 🎳'); else if(bDown>=6) toast('UAU! '+bDown+' pinos!'); else bip(440,.1); }
+function bResetPinos(){ bPins=[]; bDown=0; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:150-r*32, vx:0, vy:0, down:false}); } } }
+function bResetBola(){ bBall={x:180,y:462,vx:0,vy:0,r:20}; }
+function bLancar(){ const sp=8.5; bBall.vx=Math.sin(bAim)*sp*0.6; bBall.vy=-Math.cos(bAim)*sp; bState='roll'; bip(280,.1); }
+function bFim(){ bState='wait'; bWait=Date.now()+1600; }
 function loopBoliche(){
   const W=360,H=500;
   bCtx.fillStyle='#0a0a0a'; bCtx.fillRect(0,0,W,H);
   bCtx.fillStyle='#caa14a'; bCtx.fillRect(40,28,280,H-28);           // pista
   bCtx.fillStyle='#7a5a1e'; for(let x=70;x<320;x+=42){ bCtx.fillRect(x,28,2,H-28); } // tábuas
   bCtx.fillStyle='#10243a'; bCtx.fillRect(22,28,18,H-28); bCtx.fillRect(320,28,18,H-28); // canaletas
+  // física: pinos derrubados deslizam e batem nos que estão de pé (cadeia)
+  bPins.forEach(p=>{ if(p.down && (Math.abs(p.vx)>0.15||Math.abs(p.vy)>0.15)){
+    p.x+=p.vx; p.y+=p.vy; p.vx*=0.9; p.vy*=0.9;
+    bPins.forEach(q=>{ if(q!==p && !q.down && Math.hypot(p.x-q.x,p.y-q.y)<22){
+      q.down=true; bDown++; const a=Math.atan2(q.y-p.y,q.x-p.x);
+      q.vx=Math.cos(a)*3.2+p.vx*0.5; q.vy=Math.sin(a)*3.2+p.vy*0.5; bip(560+bDown*40,.05); } }); } });
   // pinos
   bPins.forEach(p=>{ if(!p.down) bPino(p.x,p.y);
     else { bCtx.globalAlpha=.45; bCtx.fillStyle='#fff'; bCtx.beginPath(); bCtx.ellipse(p.x,p.y+6,12,5,0,0,7); bCtx.fill(); bCtx.globalAlpha=1; } });
@@ -1214,9 +1219,14 @@ function loopBoliche(){
   } else if(bState==='roll'){
     bBall.x+=bBall.vx; bBall.y+=bBall.vy; bRot+=0.22;
     if(bBall.x<48+bBall.r){bBall.x=48+bBall.r; bBall.vx*=-1;} if(bBall.x>312-bBall.r){bBall.x=312-bBall.r; bBall.vx*=-1;}
-    bPins.forEach(p=>{ if(!p.down && Math.hypot(bBall.x-p.x,bBall.y-p.y)<bBall.r+11){ p.down=true; bDown++; bip(520+bDown*45,.05); bBall.vx+=(bBall.x-p.x)*0.05; } });
-    if(bBall.y<36) bFim();
-  } else if(bState==='wait'){ if(Date.now()>bWait){ bResetPinos(); bResetBola(); bState='aim'; } }
+    bPins.forEach(p=>{ if(!p.down && Math.hypot(bBall.x-p.x,bBall.y-p.y)<bBall.r+10){
+      p.down=true; bDown++; const a=Math.atan2(p.y-bBall.y,p.x-bBall.x);
+      p.vx=Math.cos(a)*4.5+bBall.vx*0.45; p.vy=Math.sin(a)*4.5+bBall.vy*0.45;
+      bip(520+bDown*45,.05); bBall.vx+=(bBall.x-p.x)*0.04; } });
+    if(bBall.y<32) bFim();
+  } else if(bState==='wait'){ if(Date.now()>bWait){ bTotal+=bDown;
+      if(bDown>=10) festa('STRIKE! 🎳'); else if(bDown>=6) toast('UAU! '+bDown+' pinos!'); else bip(440,.1);
+      bResetPinos(); bResetBola(); bState='aim'; } }
   // esperando = figura em pé; rolando = vira bola
   if(bState==='roll'){ bBola(bBall.x, bBall.y, bRot, bBall.r); }
   else if(bImg && bImg.complete && bImg.naturalWidth){
