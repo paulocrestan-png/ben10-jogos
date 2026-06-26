@@ -114,7 +114,7 @@
   .mcard .q{color:var(--verde2); text-shadow:0 0 8px #000;}
 
   /* CANVAS games */
-  #dots,#fish,#hammer,#corrida,#fire,#vilgax{border:4px solid var(--verde); border-radius:16px; background:#08180a;
+  #dots,#fish,#hammer,#corrida,#fire,#vilgax,#boliche{border:4px solid var(--verde); border-radius:16px; background:#08180a;
     touch-action:none; box-shadow:0 0 26px #4cff0033; max-width:92vw; height:auto;}
   #corrida.shake,#hammer.shake,#vilgax.shake{animation:tremer .3s;}
   /* teclado musical */
@@ -315,6 +315,15 @@
   </div>
 </div>
 
+<!-- ============ BOLICHE BOLA DE CANHÃO ============ -->
+<div id="jogo13" class="tela">
+  <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Boliche Bola de Canhão</div><div style="width:54px"></div></div>
+  <div class="palco">
+    <div class="info">A mira balança! Toque pra <b>rolar</b> e derrubar os pinos! 🎳</div>
+    <canvas id="boliche" width="360" height="500"></canvas>
+  </div>
+</div>
+
 <!-- OVERLAYS -->
 <div id="flash"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#0a120a"/><polygon points="22,16 78,16 50,50 78,84 22,84 50,50" fill="#86f53f"/></svg></div>
 <div id="festa"><canvas id="confete"></canvas><div class="big">🎉🦸🎉</div><div class="msg">MUITO BEM!</div></div>
@@ -418,6 +427,7 @@ function ir(id){
     if(id==='jogo10') iniciaToupeira(); else paraToupeira();
     if(id==='jogo11') iniciaIncendio(); else paraIncendio();
     if(id==='jogo12') iniciaVilgax(); else paraVilgax();
+    if(id==='jogo13') iniciaBoliche(); else paraBoliche();
   },230);
   setTimeout(()=>fl.classList.remove('go'),520);
 }
@@ -473,7 +483,8 @@ const JOGOS=[
   {id:'jogo9',nome:'Teclado Musical',badge:'🎹',ic:'massa'},
   {id:'jogo10',nome:'Bate-Toupeira',badge:'🐹',ic:'besta'},
   {id:'jogo11',nome:'Bombeiro Chama',badge:'💧',ic:'fogo'},
-  {id:'jogo12',nome:'Luta vs Vilgax',badge:'⚔️',ic:'quatro'}
+  {id:'jogo12',nome:'Luta vs Vilgax',badge:'⚔️',ic:'quatro'},
+  {id:'jogo13',nome:'Boliche Bola de Canhão',badge:'🎳',ic:'besta'}
 ];
 (function menu(){
   const c=document.getElementById('cards');
@@ -1168,6 +1179,57 @@ function loopVilgax(){
   if(vEnded){ vCtx.fillStyle='rgba(0,0,0,.62)'; vCtx.fillRect(0,H/2-54,W,108); vCtx.fillStyle=vWin?'#86f53f':'#ff7a7a'; vCtx.font='900 26px Trebuchet MS'; vCtx.textAlign='center'; vCtx.textBaseline='middle'; vCtx.fillText(vWin?'🏆 VITÓRIA!':'😖 VILGAX VENCEU',180,H/2-14); vCtx.fillStyle='#fff'; vCtx.font='bold 16px Trebuchet MS'; vCtx.fillText('Toque para lutar de novo',180,H/2+18); }
   vRAF=requestAnimationFrame(loopVilgax);
 }
+
+/* =================================================================
+   JOGO 13 — BOLICHE DO BALA DE CANHÃO
+   ================================================================= */
+let bCv,bCtx,bRAF=null,bState='aim',bAim=0,bAimDir=1,bBall=null,bPins=[],bTotal=0,bDown=0,bImg=null,bWait=0,bRot=0;
+function iniciaBoliche(){
+  bCv=document.getElementById('boliche'); bCtx=bCv.getContext('2d');
+  if(!bImg){ bImg=new Image(); bImg.src='img/clean_bala.png'; }
+  bTotal=0; bState='aim'; bAim=0; bAimDir=1; bRot=0;
+  bResetPinos(); bResetBola();
+  bCv.onpointerdown=()=>{ if(bState==='aim') bLancar(); };
+  if(!bRAF) loopBoliche();
+}
+function paraBoliche(){ if(bRAF){cancelAnimationFrame(bRAF); bRAF=null;} if(bCv)bCv.onpointerdown=null; }
+function bResetPinos(){ bPins=[]; bDown=0; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:198-r*34, down:false}); } } }
+function bResetBola(){ bBall={x:180,y:452,vx:0,vy:0,r:20}; }
+function bLancar(){ const sp=9; bBall.vx=Math.sin(bAim)*sp*0.6; bBall.vy=-Math.cos(bAim)*sp; bState='roll'; bip(280,.1); }
+function bFim(){ bTotal+=bDown; bState='wait'; bWait=Date.now()+1100;
+  if(bDown>=10) festa('STRIKE! 🎳'); else if(bDown>=6) toast('UAU! '+bDown+' pinos!'); else bip(440,.1); }
+function loopBoliche(){
+  const W=360,H=500;
+  bCtx.fillStyle='#0a0a0a'; bCtx.fillRect(0,0,W,H);
+  bCtx.fillStyle='#caa14a'; bCtx.fillRect(40,28,280,H-28);           // pista
+  bCtx.fillStyle='#7a5a1e'; for(let x=70;x<320;x+=42){ bCtx.fillRect(x,28,2,H-28); } // tábuas
+  bCtx.fillStyle='#10243a'; bCtx.fillRect(22,28,18,H-28); bCtx.fillRect(320,28,18,H-28); // canaletas
+  // pinos
+  bPins.forEach(p=>{ if(!p.down) bPino(p.x,p.y);
+    else { bCtx.globalAlpha=.45; bCtx.fillStyle='#fff'; bCtx.beginPath(); bCtx.ellipse(p.x,p.y+6,12,5,0,0,7); bCtx.fill(); bCtx.globalAlpha=1; } });
+  if(bState==='aim'){
+    bAim+=0.022*bAimDir; if(bAim>0.5||bAim<-0.5) bAimDir*=-1;
+    bCtx.strokeStyle='rgba(255,255,255,.55)'; bCtx.lineWidth=3; bCtx.setLineDash([9,9]);
+    bCtx.beginPath(); bCtx.moveTo(bBall.x,bBall.y); bCtx.lineTo(bBall.x+Math.sin(bAim)*210, bBall.y-Math.cos(bAim)*210); bCtx.stroke(); bCtx.setLineDash([]);
+  } else if(bState==='roll'){
+    bBall.x+=bBall.vx; bBall.y+=bBall.vy; bRot+=0.22;
+    if(bBall.x<48+bBall.r){bBall.x=48+bBall.r; bBall.vx*=-1;} if(bBall.x>312-bBall.r){bBall.x=312-bBall.r; bBall.vx*=-1;}
+    bPins.forEach(p=>{ if(!p.down && Math.hypot(bBall.x-p.x,bBall.y-p.y)<bBall.r+11){ p.down=true; bDown++; bip(520+bDown*45,.05); bBall.vx+=(bBall.x-p.x)*0.05; } });
+    if(bBall.y<36) bFim();
+  } else if(bState==='wait'){ if(Date.now()>bWait){ bResetPinos(); bResetBola(); bState='aim'; } }
+  // bola (Bala de Canhão girando)
+  const b=bBall;
+  if(bImg&&bImg.complete&&bImg.naturalWidth){ bCtx.save(); bCtx.translate(b.x,b.y); bCtx.rotate(bRot); const s=b.r*2.3; bCtx.drawImage(bImg,-s/2,-s/2,s,s); bCtx.restore(); }
+  else { bCtx.fillStyle='#d8d2c0'; bCtx.beginPath(); bCtx.arc(b.x,b.y,b.r,0,7); bCtx.fill(); }
+  // HUD
+  bCtx.fillStyle='#fff'; bCtx.font='bold 18px Trebuchet MS'; bCtx.textAlign='left'; bCtx.textBaseline='top'; bCtx.fillText('🎳 '+bTotal,12,6);
+  if(bState==='aim'){ bCtx.textAlign='center'; bCtx.fillText('Toque pra rolar!',180,6); }
+  bRAF=requestAnimationFrame(loopBoliche);
+}
+function bPino(x,y){ bCtx.fillStyle='#fff'; bCtx.beginPath(); bCtx.moveTo(x,y-15);
+  bCtx.quadraticCurveTo(x-7,y-7,x-6,y+2); bCtx.quadraticCurveTo(x-6,y+11,x,y+11);
+  bCtx.quadraticCurveTo(x+6,y+11,x+6,y+2); bCtx.quadraticCurveTo(x+7,y-7,x,y-15); bCtx.fill();
+  bCtx.strokeStyle='#e22'; bCtx.lineWidth=3; bCtx.beginPath(); bCtx.moveTo(x-5,y-6); bCtx.lineTo(x+5,y-6); bCtx.stroke(); }
 </script>
 </body>
 </html>
