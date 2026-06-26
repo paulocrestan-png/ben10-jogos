@@ -114,9 +114,9 @@
   .mcard .q{color:var(--verde2); text-shadow:0 0 8px #000;}
 
   /* CANVAS games */
-  #dots,#fish,#hammer,#corrida,#fire{border:4px solid var(--verde); border-radius:16px; background:#08180a;
+  #dots,#fish,#hammer,#corrida,#fire,#vilgax{border:4px solid var(--verde); border-radius:16px; background:#08180a;
     touch-action:none; box-shadow:0 0 26px #4cff0033; max-width:92vw; height:auto;}
-  #corrida.shake,#hammer.shake{animation:tremer .3s;}
+  #corrida.shake,#hammer.shake,#vilgax.shake{animation:tremer .3s;}
   /* teclado musical */
   #piano{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:min(94vw,480px);}
   @media(min-width:560px){#piano{grid-template-columns:repeat(8,1fr);}}
@@ -306,6 +306,15 @@
   </div>
 </div>
 
+<!-- ============ LUTA VS VILGAX ============ -->
+<div id="jogo12" class="tela">
+  <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Luta vs Vilgax</div><div style="width:54px"></div></div>
+  <div class="palco">
+    <div class="info">O alien troca sozinho a cada 3s! Toque pra <b>atacar</b> ⚔️</div>
+    <canvas id="vilgax" width="360" height="500"></canvas>
+  </div>
+</div>
+
 <!-- OVERLAYS -->
 <div id="flash"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#0a120a"/><polygon points="22,16 78,16 50,50 78,84 22,84 50,50" fill="#86f53f"/></svg></div>
 <div id="festa"><canvas id="confete"></canvas><div class="big">🎉🦸🎉</div><div class="msg">MUITO BEM!</div></div>
@@ -408,6 +417,7 @@ function ir(id){
     if(id==='jogo9') montaPiano();
     if(id==='jogo10') iniciaToupeira(); else paraToupeira();
     if(id==='jogo11') iniciaIncendio(); else paraIncendio();
+    if(id==='jogo12') iniciaVilgax(); else paraVilgax();
   },230);
   setTimeout(()=>fl.classList.remove('go'),520);
 }
@@ -462,7 +472,8 @@ const JOGOS=[
   {id:'jogo8',nome:'Corrida XLR8',badge:'🏃',ic:'xlr8'},
   {id:'jogo9',nome:'Teclado Musical',badge:'🎹',ic:'massa'},
   {id:'jogo10',nome:'Bate-Toupeira',badge:'🐹',ic:'besta'},
-  {id:'jogo11',nome:'Bombeiro Chama',badge:'💧',ic:'fogo'}
+  {id:'jogo11',nome:'Bombeiro Chama',badge:'💧',ic:'fogo'},
+  {id:'jogo12',nome:'Luta vs Vilgax',badge:'⚔️',ic:'quatro'}
 ];
 (function menu(){
   const c=document.getElementById('cards');
@@ -1056,6 +1067,95 @@ function desenhaFogo(x,y,s,t){
   xCtx.fillStyle='#ff3b00'; xCtx.beginPath(); xCtx.moveTo(x,y-s*1.5-fl); xCtx.quadraticCurveTo(x+s,y, x,y+s); xCtx.quadraticCurveTo(x-s,y, x,y-s*1.5-fl); xCtx.fill();
   xCtx.fillStyle='#ffae00'; xCtx.beginPath(); xCtx.moveTo(x,y-s*0.95); xCtx.quadraticCurveTo(x+s*.6,y+s*.2, x,y+s*.6); xCtx.quadraticCurveTo(x-s*.6,y+s*.2, x,y-s*0.95); xCtx.fill();
   xCtx.fillStyle='#ffe23a'; xCtx.beginPath(); xCtx.arc(x,y+s*0.1,s*0.32,0,7); xCtx.fill();
+}
+
+/* =================================================================
+   JOGO 12 — LUTA VS VILGAX (alien troca sozinho a cada 3s)
+   ================================================================= */
+const POW_NOME={fogo:'Fogo 🔥',pedra:'Pedrada 🪨',speed:'Veloz 💨',intangivel:'Fantasma 👻',melee:'Garras 🐾',tiny:'Encolher 🔬',cristal:'Cristal 💎',acido:'Ácido 🧪',ferrao:'Ferrão 🐝',raio:'Raio ⚡'};
+const VILGAX_ALIENS=[
+  {img:'img/alien10_1.png', label:'Fera',          power:'melee',     cor:'#e07a1a', dmg:13, scale:1.0},
+  {img:'img/alien10_2.png', label:'Quatro Braços', power:'pedra',     cor:'#b8b8b8', dmg:14, scale:1.05},
+  {img:'img/alien10_3.png', label:'Massa Cinzenta',power:'tiny',      cor:'#9fb6c6', dmg:7,  scale:0.4},
+  {img:'img/alien10_4.png', label:'XLR8',          power:'speed',     cor:'#39a0ff', dmg:6,  scale:1.0},
+  {img:'img/alien10_5.png', label:'Cristal',       power:'cristal',   cor:'#7cf0c0', dmg:11, scale:1.0},
+  {img:'img/alien10_6.png', label:'Cipó',          power:'acido',     cor:'#8eea3a', dmg:11, scale:1.0},
+  {img:'img/alien10_7.png', label:'Inseto',        power:'ferrao',    cor:'#ffd21a', dmg:10, scale:1.0},
+  {img:'img/alien10_8.png', label:'Vespa',         power:'raio',      cor:'#ffe23a', dmg:12, scale:1.0},
+  {img:'img/alien10_9.png', label:'Fantasma',      power:'intangivel',cor:'#c0d0e0', dmg:10, scale:1.0},
+  {img:'img/alien10_10.png',label:'Chama',         power:'fogo',      cor:'#ff5a1a', dmg:12, scale:1.0}
+];
+let vCv,vCtx,vRAF=null,vHP,vHPMax=3000,vCur=0,vProj=[],vFx=[],vStart=0,vSwap=0,vAtk=0,vHurt=0,vMsg='',vMsgT=0,vEnded=false;
+const vAImgs=[]; let vBoss=null,vAssetsLoaded=false;
+function iniciaVilgax(){
+  vCv=document.getElementById('vilgax'); vCtx=vCv.getContext('2d');
+  if(!vAssetsLoaded){ VILGAX_ALIENS.forEach(a=>{const im=new Image(); im.src=a.img; vAImgs.push(im);});
+    vBoss=new Image(); vBoss.src='img/vilgax.png'; vAssetsLoaded=true; }
+  vHP=vHPMax; vProj=[]; vFx=[]; vCur=rnd(10); vEnded=false; vHurt=0; vMsg='';
+  const now=Date.now(); vStart=now; vSwap=now; vAtk=now;
+  vCv.onpointerdown=()=>{ if(vEnded){ iniciaVilgax(); return; } atacarVilgax(); };
+  if(!vRAF) loopVilgax();
+}
+function paraVilgax(){ if(vRAF){cancelAnimationFrame(vRAF); vRAF=null;} if(vCv)vCv.onpointerdown=null; }
+function tiroVilgax(a){ vProj.push({x:180+(Math.random()*30-15), y:430, vy:-8, cor:a.cor, dmg:a.dmg, r:a.power==='tiny'?5:10, from:'p'}); }
+function atacarVilgax(){
+  const a=VILGAX_ALIENS[vCur];
+  if(a.power==='speed'){ [0,1,2].forEach(i=>setTimeout(()=>tiroVilgax(a),i*70)); bip(900,.05); }
+  else { tiroVilgax(a); bip(a.power==='fogo'?440:a.power==='pedra'?200:a.power==='raio'?1000:620,.07); }
+}
+function ataqueVilgax(){ vProj.push({x:180+(Math.random()*120-60), y:160, vy:6, cor:'#ff2a2a', r:12, from:'v'}); }
+function loopVilgax(){
+  const now=Date.now(), W=360,H=500;
+  if(!vEnded){
+    const left=180-(now-vStart)/1000;
+    if(now-vSwap>=3000){ let nx=rnd(10); if(nx===vCur)nx=(nx+1)%10; vCur=nx; vSwap=now; vMsg=VILGAX_ALIENS[vCur].label.toUpperCase()+'!'; vMsgT=now; bip(780,.08); setTimeout(()=>bip(1040,.08),80); }
+    if(now-vAtk>=2200){ ataqueVilgax(); vAtk=now; }
+    if(left<=0 || vHP<=0){ vEnded=true; setTimeout(()=>festa(vHP<=0?'NOCAUTE! 🏆':'VOCÊ VENCEU! 🏆'),250); }
+  }
+  vHurt=Math.max(0,vHurt-0.08);
+  // projéteis
+  for(let i=vProj.length-1;i>=0;i--){ const p=vProj[i]; p.y+=p.vy;
+    if(p.from==='p'){ if(p.y<=140){ vHP=Math.max(0,vHP-p.dmg); vHurt=1; vFx.push({x:p.x,y:140,t:1,cor:p.cor}); vProj.splice(i,1); } }
+    else { if(p.y>=412){ const cp=VILGAX_ALIENS[vCur].power;
+        if(cp==='speed'){ vMsg='DESVIOU! 💨'; vMsgT=now; }
+        else if(cp==='intangivel'){ vMsg='ATRAVESSOU! 👻'; vMsgT=now; }
+        else { vCv.classList.add('shake'); setTimeout(()=>vCv.classList.remove('shake'),250); bip(150,.16); vFx.push({x:180,y:430,t:1,cor:'#ff2a2a'}); }
+        vProj.splice(i,1);
+      } else if(p.y>H){ vProj.splice(i,1); } } }
+  // ===== desenho =====
+  vCtx.fillStyle='#0a1226'; vCtx.fillRect(0,0,W,H);
+  for(let i=0;i<22;i++){ vCtx.fillStyle='rgba(255,255,255,.06)'; vCtx.fillRect((i*53+7)%W,(i*89+13)%200,2,2); }
+  vCtx.fillStyle='#12204a'; vCtx.fillRect(0,H-70,W,70);
+  // Vilgax
+  if(vBoss && vBoss.complete && vBoss.naturalWidth){ const th=176, r=th/vBoss.naturalHeight, w=vBoss.naturalWidth*r;
+    vCtx.save(); if(vHurt>0){ vCtx.translate((Math.random()*6-3)*vHurt,0); } vCtx.drawImage(vBoss,180-w/2,30,w,th); vCtx.restore();
+    if(vHurt>0){ vCtx.fillStyle='rgba(255,40,40,'+(vHurt*0.35)+')'; vCtx.fillRect(180-w/2,30,w,th); }
+  } else { vCtx.fillStyle='#6f9a2e'; vCtx.beginPath(); vCtx.arc(180,90,42,0,7); vCtx.fill(); }
+  // barra de vida do Vilgax
+  vCtx.fillStyle='#400'; vCtx.fillRect(34,14,292,18); vCtx.fillStyle='#ff3a3a'; vCtx.fillRect(34,14,292*(vHP/vHPMax),18);
+  vCtx.strokeStyle='#fff'; vCtx.lineWidth=2; vCtx.strokeRect(34,14,292,18);
+  vCtx.fillStyle='#fff'; vCtx.font='bold 12px Trebuchet MS'; vCtx.textAlign='center'; vCtx.textBaseline='middle'; vCtx.fillText('VILGAX',180,23);
+  // alien do jogador
+  const a=VILGAX_ALIENS[vCur], im=vAImgs[vCur];
+  if(im && im.complete && im.naturalWidth){ const th=110*a.scale, r=th/im.naturalHeight, w=im.naturalWidth*r;
+    vCtx.drawImage(im,180-w/2,430-th,w,th); }
+  // projéteis
+  vProj.forEach(p=>{ vCtx.fillStyle=p.cor; vCtx.beginPath(); vCtx.arc(p.x,p.y,p.r,0,7); vCtx.fill();
+    if(p.from==='p'){ vCtx.strokeStyle='#fff'; vCtx.lineWidth=2; vCtx.stroke(); } });
+  // efeitos
+  for(let i=vFx.length-1;i>=0;i--){ const f=vFx[i]; f.t-=0.07; vCtx.strokeStyle=f.cor; vCtx.lineWidth=4; vCtx.globalAlpha=Math.max(0,f.t);
+    vCtx.beginPath(); vCtx.arc(f.x,f.y,(1-f.t)*26,0,7); vCtx.stroke(); vCtx.globalAlpha=1; if(f.t<=0)vFx.splice(i,1); }
+  // HUD: tempo + alien atual
+  const left=Math.max(0,180-(now-vStart)/1000); const mm=Math.floor(left/60), ss=Math.floor(left%60);
+  vCtx.fillStyle='#bff5a0'; vCtx.font='bold 16px Trebuchet MS'; vCtx.textAlign='left'; vCtx.textBaseline='top';
+  vCtx.fillText('⏱ '+mm+':'+(ss<10?'0':'')+ss, 10, 40);
+  vCtx.fillStyle='#fff'; vCtx.textAlign='center'; vCtx.font='bold 17px Trebuchet MS';
+  vCtx.fillText(a.label+' — '+POW_NOME[a.power], 180, 452);
+  // mensagem
+  if(now-vMsgT<800){ vCtx.fillStyle='#86f53f'; vCtx.font='900 30px Trebuchet MS'; vCtx.textAlign='center'; vCtx.textBaseline='middle';
+    vCtx.strokeStyle='#000'; vCtx.lineWidth=4; vCtx.strokeText(vMsg,180,250); vCtx.fillText(vMsg,180,250); }
+  if(vEnded){ vCtx.fillStyle='rgba(0,0,0,.6)'; vCtx.fillRect(0,H/2-50,W,100); vCtx.fillStyle='#fff'; vCtx.font='bold 20px Trebuchet MS'; vCtx.textAlign='center'; vCtx.textBaseline='middle'; vCtx.fillText('Toque para lutar de novo',180,H/2); }
+  vRAF=requestAnimationFrame(loopVilgax);
 }
 </script>
 </body>
