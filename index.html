@@ -1217,8 +1217,12 @@ function loopBoliche(){
     bPins.forEach(p=>{ if(!p.down && Math.hypot(bBall.x-p.x,bBall.y-p.y)<bBall.r+11){ p.down=true; bDown++; bip(520+bDown*45,.05); bBall.vx+=(bBall.x-p.x)*0.05; } });
     if(bBall.y<36) bFim();
   } else if(bState==='wait'){ if(Date.now()>bWait){ bResetPinos(); bResetBola(); bState='aim'; } }
-  // bola estilo Bala de Canhão (rolando)
-  bBola(bBall.x, bBall.y, bRot, bBall.r);
+  // esperando = figura em pé; rolando = vira bola
+  if(bState==='roll'){ bBola(bBall.x, bBall.y, bRot, bBall.r); }
+  else if(bImg && bImg.complete && bImg.naturalWidth){
+    const th=82, r=th/bImg.naturalHeight, w=bImg.naturalWidth*r;
+    bCtx.drawImage(bImg, bBall.x-w/2, bBall.y+bBall.r-th, w, th);
+  } else { bBola(bBall.x, bBall.y, 0, bBall.r); }
   // HUD
   bCtx.fillStyle='#fff'; bCtx.font='bold 18px Trebuchet MS'; bCtx.textAlign='left'; bCtx.textBaseline='top'; bCtx.fillText('🎳 '+bTotal,12,6);
   if(bState==='aim'){ bCtx.textAlign='center'; bCtx.fillText('Toque pra rolar!',180,6); }
