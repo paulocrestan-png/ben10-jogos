@@ -129,8 +129,10 @@
     border-radius:50% 50% 45% 45%; position:relative; overflow:hidden; border:3px solid #20160a; cursor:pointer;}
   .hole::after{content:''; position:absolute; left:12%; right:12%; bottom:8%; height:22%;
     background:#0a0805; border-radius:50%;}
-  .hole .mole{position:absolute; left:0; right:0; bottom:-105%; font-size:46px; text-align:center; transition:bottom .12s; z-index:2;}
-  .hole.up .mole{bottom:10%;}
+  .hole .mole{position:absolute; left:6%; right:6%; bottom:-105%; height:88%;
+    background-image:url("img/clean_animal.png"); background-size:contain; background-repeat:no-repeat;
+    background-position:bottom center; transition:bottom .13s; z-index:2;}
+  .hole.up .mole{bottom:6%;}
   .hole.bonk{animation:tremer .25s;}
 
   /* PINTAR */
@@ -931,7 +933,7 @@ let moleInit=false,moleTimer=null,moleScore=0,moleHoles=[],moleSpeed=1100;
 function iniciaToupeira(){
   const g=document.getElementById('molegrid');
   if(!moleInit){ g.innerHTML=''; moleHoles=[];
-    for(let i=0;i<9;i++){ const h=document.createElement('div'); h.className='hole'; h.innerHTML='<div class="mole">🐹</div>';
+    for(let i=0;i<9;i++){ const h=document.createElement('div'); h.className='hole'; h.innerHTML='<div class="mole"></div>';
       const idx=i; h.querySelector('.mole').onpointerdown=e=>{e.preventDefault(); bateToupeira(idx);};
       g.appendChild(h); moleHoles.push({el:h,up:false}); }
     moleInit=true;
@@ -957,32 +959,54 @@ function bateToupeira(i){ const h=moleHoles[i]; if(!h.up)return; h.up=false; h.e
 /* =================================================================
    JOGO 11 — BOMBEIRO CHAMA (apagar incêndio)
    ================================================================= */
-let xCv,xCtx,xRAF=null,xFires=[],xScore=0,xTick=0,xImg=null,xSplash=[];
+let xCv,xCtx,xRAF=null,xBuild=[],xScore=0,xBurn=0,xTick=0,xImg=null,xSplash=[];
 function iniciaIncendio(){
   xCv=document.getElementById('fire'); xCtx=xCv.getContext('2d');
-  xFires=[]; xSplash=[]; xScore=0; xTick=0;
+  xScore=0; xBurn=0; xTick=0; xSplash=[];
   if(!xImg){ xImg=new Image(); xImg.src=ART_IMG['chama'].img; }
+  const H=420;
+  const spots=[[60,H-150],[150,H-150],[240,H-150],[320,H-150],[105,H-78],[215,H-78],[300,H-78]];
+  xBuild=spots.map((p,i)=>({x:p[0],y:p[1],type:(i%2===0?'arvore':'casa'),state:'ok',ft:0,fs:10,rg:0}));
   document.getElementById('fire-placar').textContent='0';
   xCv.onpointerdown=e=>{ const r=xCv.getBoundingClientRect(); apagaFogo((e.clientX-r.left)*(360/r.width),(e.clientY-r.top)*(420/r.height)); };
   if(!xRAF) loopIncendio();
 }
 function paraIncendio(){ if(xRAF){cancelAnimationFrame(xRAF); xRAF=null;} if(xCv)xCv.onpointerdown=null; }
-function apagaFogo(x,y){ for(let i=xFires.length-1;i>=0;i--){ const f=xFires[i];
-  if(Math.hypot(x-f.x,y-f.y)<f.s+14){ xFires.splice(i,1); xScore++; document.getElementById('fire-placar').textContent=xScore;
-    bip(320,.09,'sine'); xSplash.push({x:f.x,y:f.y,t:1}); if(xScore>0&&xScore%12===0) festa('HERÓI! 🚒'); break; } } }
+function apagaFogo(x,y){ for(const b of xBuild){ if(b.state==='fogo' && Math.hypot(x-b.x,y-(b.y-34))<30){
+  b.state='ok'; b.fs=10; xScore++; document.getElementById('fire-placar').textContent=xScore;
+  bip(320,.09,'sine'); xSplash.push({x:b.x,y:b.y-30,t:1}); if(xScore>0&&xScore%12===0) festa('HERÓI! 🚒'); break; } } }
 function loopIncendio(){
   const W=360,H=420; xTick++;
-  xCtx.fillStyle='#0b1838'; xCtx.fillRect(0,0,W,H);
-  xCtx.fillStyle='#244a1a'; xCtx.fillRect(0,H-56,W,56);
-  if(xImg&&xImg.complete) xCtx.drawImage(xImg,6,H-150,118,118);
-  if(xTick % Math.max(34, 92-xScore*2) === 0) xFires.push({x:40+Math.random()*(W-80), y:70+Math.random()*(H-180), s:13, grow:0.05+Math.random()*0.04});
-  xFires.forEach(f=>f.s+=f.grow);
-  xFires=xFires.filter(f=>f.s<58);
-  xFires.forEach(f=>desenhaFogo(f.x,f.y,f.s,xTick));
+  // céu + chão
+  xCtx.fillStyle='#163a6a'; xCtx.fillRect(0,0,W,H);
+  xCtx.fillStyle='#2e5a1e'; xCtx.fillRect(0,H-90,W,90);
+  xCtx.fillStyle='#244a18'; xCtx.fillRect(0,H-30,W,30);
+  // Chama mascote no canto
+  if(xImg&&xImg.complete) xCtx.drawImage(xImg,4,4,82,82);
+  // acende fogo num prédio ok (ritmo aumenta)
+  const interval=Math.max(40, Math.round(125-xScore*2.5));
+  if(xTick%interval===0){ const oks=xBuild.filter(b=>b.state==='ok'); if(oks.length){ const b=oks[rnd(oks.length)];
+    b.state='fogo'; b.ft=Math.max(150,260-xScore*2); b.fs=10; } }
+  // atualiza estados
+  xBuild.forEach(b=>{
+    if(b.state==='fogo'){ b.fs=Math.min(30,b.fs+0.16); b.ft--; if(b.ft<=0){ b.state='queimado'; b.rg=260; xBurn++; bip(110,.28); } }
+    else if(b.state==='queimado'){ b.rg--; if(b.rg<=0){ b.state='ok'; } }
+  });
+  xBuild.forEach(b=>desenhaPredio(b,xTick));
+  // respingos
   xSplash.forEach(s=>{ s.t-=0.06; xCtx.strokeStyle='rgba(120,200,255,'+Math.max(0,s.t)+')'; xCtx.lineWidth=4;
     xCtx.beginPath(); xCtx.arc(s.x,s.y,(1-s.t)*32,0,7); xCtx.stroke(); });
   xSplash=xSplash.filter(s=>s.t>0);
+  // placar de queimados
+  xCtx.fillStyle='#ff9b6a'; xCtx.font='bold 16px Trebuchet MS'; xCtx.textAlign='right'; xCtx.textBaseline='top';
+  xCtx.fillText('🔥 '+xBurn,W-10,8);
   xRAF=requestAnimationFrame(loopIncendio);
+}
+function desenhaPredio(b,t){
+  xCtx.textAlign='center'; xCtx.textBaseline='alphabetic'; xCtx.font='40px serif';
+  let e = b.state==='queimado' ? (b.type==='casa'?'🏚️':'🪵') : (b.type==='casa'?'🏠':'🌳');
+  if(b.state==='queimado'){ xCtx.globalAlpha=0.7; } xCtx.fillText(e,b.x,b.y); xCtx.globalAlpha=1;
+  if(b.state==='fogo') desenhaFogo(b.x, b.y-34, b.fs, t);
 }
 function desenhaFogo(x,y,s,t){
   const fl=Math.sin(t*0.3+x)*2;
