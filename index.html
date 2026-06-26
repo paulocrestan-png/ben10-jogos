@@ -320,7 +320,7 @@
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Boliche Bola de Canhão</div><div style="width:54px"></div></div>
   <div class="palco">
     <div class="info">A mira balança! Toque pra <b>rolar</b> e derrubar os pinos! 🎳</div>
-    <canvas id="boliche" width="360" height="500"></canvas>
+    <canvas id="boliche" width="360" height="640"></canvas>
   </div>
 </div>
 
@@ -1193,12 +1193,13 @@ function iniciaBoliche(){
   if(!bRAF) loopBoliche();
 }
 function paraBoliche(){ if(bRAF){cancelAnimationFrame(bRAF); bRAF=null;} if(bCv)bCv.onpointerdown=null; }
-function bResetPinos(){ bPins=[]; bDown=0; const apex=240-(bFase-1)*25; for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:apex-r*32, vx:0, vy:0, down:false}); } } }
-function bResetBola(){ bBall={x:180,y:462,vx:0,vy:0,r:20}; }
+function bResetPinos(){ bPins=[]; bDown=0; const dist=222*(1+(bFase-1)*0.25); const apex=600-dist; // Fase 5 = 2x a distância da Fase 1
+  for(let r=0;r<4;r++){ for(let i=0;i<=r;i++){ bPins.push({x:180+(i-r/2)*30, y:apex-r*32, vx:0, vy:0, down:false}); } } }
+function bResetBola(){ bBall={x:180,y:600,vx:0,vy:0,r:20}; }
 function bLancar(){ const sp=8.5; bBall.vx=Math.sin(bAim)*sp*0.6; bBall.vy=-Math.cos(bAim)*sp; bState='roll'; bip(280,.1); }
 function bFim(){ bState='wait'; bWait=Date.now()+1600; }
 function loopBoliche(){
-  const W=360,H=500;
+  const W=360,H=640;
   bCtx.fillStyle='#0a0a0a'; bCtx.fillRect(0,0,W,H);
   bCtx.fillStyle='#caa14a'; bCtx.fillRect(40,28,280,H-28);           // pista
   bCtx.fillStyle='#7a5a1e'; for(let x=70;x<320;x+=42){ bCtx.fillRect(x,28,2,H-28); } // tábuas
@@ -1215,7 +1216,7 @@ function loopBoliche(){
   if(bState==='aim'){
     bAim+=0.022*bAimDir; if(bAim>0.5||bAim<-0.5) bAimDir*=-1;
     bCtx.strokeStyle='rgba(255,255,255,.55)'; bCtx.lineWidth=3; bCtx.setLineDash([9,9]);
-    bCtx.beginPath(); bCtx.moveTo(bBall.x,bBall.y); bCtx.lineTo(bBall.x+Math.sin(bAim)*210, bBall.y-Math.cos(bAim)*210); bCtx.stroke(); bCtx.setLineDash([]);
+    bCtx.beginPath(); bCtx.moveTo(bBall.x,bBall.y); bCtx.lineTo(bBall.x+Math.sin(bAim)*260, bBall.y-Math.cos(bAim)*260); bCtx.stroke(); bCtx.setLineDash([]);
   } else if(bState==='roll'){
     bBall.x+=bBall.vx; bBall.y+=bBall.vy; bRot+=0.22;
     if(bBall.x<48+bBall.r){bBall.x=48+bBall.r; bBall.vx*=-1;} if(bBall.x>312-bBall.r){bBall.x=312-bBall.r; bBall.vx*=-1;}
