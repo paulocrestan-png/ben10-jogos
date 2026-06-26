@@ -123,6 +123,11 @@
   .tecla-mus{border:none; border-radius:14px; padding:34px 0; font-size:17px; font-weight:900;
     color:#06140a; cursor:pointer; box-shadow:0 6px 0 rgba(0,0,0,.35); transition:.08s;}
   .tecla-mus.press{transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.35); filter:brightness(1.35);}
+  #alien-pick{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; width:min(94vw,440px);}
+  .alien-btn{aspect-ratio:1; background-color:#12260c; border:3px solid var(--verde3); border-radius:14px;
+    background-size:80%; background-repeat:no-repeat; background-position:center; cursor:pointer; image-rendering:pixelated;}
+  .alien-btn.sel{border-color:var(--verde); box-shadow:0 0 16px var(--verde); background-color:#1c4a10;}
+  .alien-btn:active{transform:scale(.9);}
   /* bate-toupeira */
   #molegrid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; width:min(90vw,420px);}
   .hole{aspect-ratio:1; background:radial-gradient(ellipse at 50% 80%, #4a3018 55%, #1a1006 100%);
@@ -276,9 +281,10 @@
 <div id="jogo9" class="tela">
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Teclado Musical</div><div style="width:54px"></div></div>
   <div class="palco">
-    <div class="info">Toque nas teclas e faça música! 🎵</div>
+    <div class="info">Escolha um alien pra ouvir a música dele! 🎵</div>
+    <div id="alien-pick"></div>
+    <div class="info" style="font-size:14px; opacity:.85">Ou toque as teclas pra brincar 🎹</div>
     <div id="piano"></div>
-    <button class="btn-acao" onclick="tocaMusica()">🎵 Tocar uma música</button>
   </div>
 </div>
 
@@ -921,11 +927,32 @@ function loopCorrida(){
 const NOTAS=[{n:'DÓ',f:261.63,c:'#e53935'},{n:'RÉ',f:293.66,c:'#fb8c00'},{n:'MI',f:329.63,c:'#fdd835'},
   {n:'FÁ',f:349.23,c:'#4cd137'},{n:'SOL',f:392.0,c:'#2b6fe0'},{n:'LÁ',f:440.0,c:'#8e44ad'},
   {n:'SI',f:493.88,c:'#ff7fb6'},{n:'DÓ²',f:523.25,c:'#ff3b30'}];
-let pianoInit=false;
+// 10 cantigas tradicionais de domínio público (só sequência de notas, índice 0..7)
+const MELODIAS=[
+  [[0,1],[0,1],[4,1],[4,1],[5,1],[5,1],[4,2],[3,1],[3,1],[2,1],[2,1],[1,1],[1,1],[0,2]],            // 1
+  [[2,1],[1,1],[0,1],[1,1],[2,1],[2,1],[2,2],[1,1],[1,1],[1,2],[2,1],[4,1],[4,2]],                  // 2
+  [[0,1],[1,1],[2,1],[0,1],[0,1],[1,1],[2,1],[0,1],[2,1],[3,1],[4,2],[2,1],[3,1],[4,2]],            // 3
+  [[4,1],[5,1],[4,1],[3,1],[2,1],[3,1],[4,2],[1,1],[2,1],[3,2],[2,1],[3,1],[4,2]],                  // 4
+  [[0,1],[0,1],[0,1],[4,1],[5,1],[5,1],[4,2],[2,1],[2,1],[1,1],[1,1],[0,2]],                        // 5
+  [[0,1],[0,1],[0,1],[1,1],[2,2],[2,1],[1,1],[2,1],[3,1],[4,3]],                                    // 6
+  [[2,1],[2,1],[3,1],[4,1],[4,1],[3,1],[2,1],[1,1],[0,1],[0,1],[1,1],[2,1],[2,1.5],[1,.5],[1,2]],   // 7
+  [[2,1],[2,1],[2,2],[2,1],[2,1],[2,2],[2,1],[4,1],[0,1.5],[1,.5],[2,3]],                           // 8
+  [[0,1],[0,1],[0,1],[1,1],[2,1],[2,1],[1,1],[0,1],[1,1],[2,1],[0,2]],                              // 9
+  [[2,1],[1,1],[0,2],[2,1],[1,1],[0,2],[0,.5],[0,.5],[0,.5],[0,.5],[1,.5],[1,.5],[1,.5],[1,.5],[2,1],[1,1],[0,2]] // 10
+];
+// ritmo (seg por tempo) escolhido pra "combinar" com o jeitão de cada alien
+const TEMPOS=[.42,.55,.36,.30,.42,.40,.30,.34,.60,.34];
+const ALIENS10 = Array.from({length:10},(_,i)=>({img:'img/alien10_'+(i+1)+'.png', notes:MELODIAS[i], tempo:TEMPOS[i]}));
+let pianoInit=false, melodiaTimers=[];
 function montaPiano(){
-  if(pianoInit)return; const p=document.getElementById('piano'); p.innerHTML='';
+  if(pianoInit)return;
+  const p=document.getElementById('piano'); p.innerHTML='';
   NOTAS.forEach((nt,i)=>{ const k=document.createElement('button'); k.className='tecla-mus'; k.style.background=nt.c; k.textContent=nt.n;
     k.onpointerdown=e=>{e.preventDefault(); tocaNota(i,k);}; p.appendChild(k); });
+  const ap=document.getElementById('alien-pick'); ap.innerHTML='';
+  ALIENS10.forEach((a,i)=>{ const b=document.createElement('button'); b.className='alien-btn'; b.style.backgroundImage=`url("${a.img}")`;
+    b.onclick=()=>{ document.querySelectorAll('.alien-btn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); playMelody(a.notes, a.tempo); };
+    ap.appendChild(b); });
   pianoInit=true;
 }
 function notaSom(freq,dur){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
@@ -933,9 +960,11 @@ function notaSom(freq,dur){ try{ actx=actx||new (window.AudioContext||window.web
   g.gain.setValueAtTime(.0001,actx.currentTime); g.gain.exponentialRampToValueAtTime(.28,actx.currentTime+.02);
   g.gain.exponentialRampToValueAtTime(.0008,actx.currentTime+dur); o.start(); o.stop(actx.currentTime+dur);}catch(e){} }
 function tocaNota(i,k){ notaSom(NOTAS[i].f,.55); if(k){k.classList.add('press'); setTimeout(()=>k.classList.remove('press'),180);} }
-function tocaMusica(){ // Brilha Brilha Estrelinha (domínio público)
-  const seq=[0,0,4,4,5,5,4,3,3,2,2,1,1,0], dur=[.4,.4,.4,.4,.4,.4,.7,.4,.4,.4,.4,.4,.4,.7];
-  let t=0; seq.forEach((idx,j)=>{ setTimeout(()=>tocaNota(idx,document.querySelectorAll('.tecla-mus')[idx]), t*1000); t+=dur[j]; });
+function playMelody(notes, tempo){
+  const bt = tempo || 0.42;
+  melodiaTimers.forEach(clearTimeout); melodiaTimers=[];
+  let t=0; const keys=document.querySelectorAll('.tecla-mus');
+  notes.forEach(([idx,beats])=>{ melodiaTimers.push(setTimeout(()=>tocaNota(idx,keys[idx]), t*1000)); t+=beats*bt; });
 }
 
 /* =================================================================
