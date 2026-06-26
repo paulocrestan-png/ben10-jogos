@@ -148,6 +148,10 @@
   #pb-pct{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-weight:900; color:#fff; font-size:15px; text-shadow:0 1px 2px #000;}
   #pb-msg{min-height:22px; color:#ffd21a; font-weight:800; font-size:16px;}
+  #toast{position:fixed; top:22%; left:50%; transform:translate(-50%,0) scale(0); z-index:58; pointer-events:none;
+    background:#000c; color:var(--verde); font-weight:900; font-size:30px; padding:10px 26px; border-radius:18px;
+    border:3px solid var(--verde); box-shadow:0 0 26px #6cff0088; text-shadow:0 0 10px #6cff00; transition:transform .2s;}
+  #toast.show{transform:translate(-50%,0) scale(1);}
   #paint-svg .reg{cursor:pointer; transition:fill .15s;}
   .paleta{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px;}
   .cor{width:40px; height:40px; border-radius:50%; cursor:pointer; border:3px solid #fff3; box-shadow:0 3px 6px #0007;}
@@ -244,7 +248,7 @@
 <div id="jogo6" class="tela">
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Pescaria Alien</div><div style="width:54px"></div></div>
   <div class="palco">
-    <div class="info">Toque nos peixes-alien para pescar! 🎣 Pescados: <span id="fish-placar" class="placar">0</span></div>
+    <div class="info">Toque no peixe quando a boca abrir! 🎣 Pescados: <span id="fish-placar" class="placar">0</span> · Fase <span id="fish-fase" class="placar">1</span>/10</div>
     <canvas id="fish" width="360" height="420"></canvas>
   </div>
 </div>
@@ -263,7 +267,7 @@
 <div id="jogo8" class="tela">
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Corrida XLR8</div><div style="width:54px"></div></div>
   <div class="palco">
-    <div class="info">Toque <b>esquerda</b> ou <b>direita</b> pra desviar dos vasos! 🏺</div>
+    <div class="info">Toque <b>esquerda</b>/<b>direita</b> pra desviar dos vasos! 🏺 Fase <span id="corr-fase" class="placar">1</span>/10</div>
     <canvas id="corrida" width="330" height="460"></canvas>
   </div>
 </div>
@@ -282,7 +286,7 @@
 <div id="jogo10" class="tela">
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Bate-Toupeira</div><div style="width:54px"></div></div>
   <div class="palco">
-    <div class="info">Bata nas toupeiras que saem do buraco! 🔨 Pontos: <span id="mole-placar" class="placar">0</span></div>
+    <div class="info">Bata no Animal que sai do buraco! 🔨 Pontos: <span id="mole-placar" class="placar">0</span> · Fase <span id="mole-fase" class="placar">1</span>/10</div>
     <div id="molegrid"></div>
   </div>
 </div>
@@ -291,7 +295,7 @@
 <div id="jogo11" class="tela">
   <div class="topo"><button class="btn-voltar" onclick="ir('menu')">⬅</button><div class="titulo">Bombeiro Chama</div><div style="width:54px"></div></div>
   <div class="palco">
-    <div class="info">Toque no fogo pra apagar! 💧 Apagados: <span id="fire-placar" class="placar">0</span></div>
+    <div class="info">Toque no fogo pra apagar! 💧 Apagados: <span id="fire-placar" class="placar">0</span> · Fase <span id="fire-fase" class="placar">1</span>/10</div>
     <canvas id="fire" width="360" height="420"></canvas>
   </div>
 </div>
@@ -299,6 +303,7 @@
 <!-- OVERLAYS -->
 <div id="flash"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="#0a120a"/><polygon points="22,16 78,16 50,50 78,84 22,84 50,50" fill="#86f53f"/></svg></div>
 <div id="festa"><canvas id="confete"></canvas><div class="big">🎉🦸🎉</div><div class="msg">MUITO BEM!</div></div>
+<div id="toast"></div>
 
 <script src="art.js"></script>
 <script>
@@ -411,6 +416,9 @@ function bip(freq,dur,tipo){
   }catch(e){}
 }
 function fanfarra(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>bip(f,.16,'triangle'),i*110));}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),900); }
+function checaFase(cur,novo,elId){ if(novo>cur){ const el=document.getElementById(elId); if(el)el.textContent=novo;
+  bip(700,.08); setTimeout(()=>bip(950,.1),90); if(novo>=10) festa('FASE 10! 🏆'); else toast('FASE '+novo+'! 🚀'); } return novo; }
 
 /* CONFETE */
 const confCv=document.getElementById('confete'); let confCtx=confCv.getContext('2d'), confP=[], confRAF;
@@ -770,11 +778,12 @@ function atualizaBarra(){ const pct=pbTotal?Math.round(pbDone/pbTotal*100):0;
 /* =================================================================
    JOGO 6 — PESCARIA ALIEN
    ================================================================= */
-let fCv,fCtx,fRAF=null,fScore=0,fFish=[],fRot=0,fW=360,fH=420,fRod=null;
+let fCv,fCtx,fRAF=null,fScore=0,fFish=[],fRot=0,fW=360,fH=420,fRod=null,fFase=1;
 const FISH_CORES=['#ff5a1a','#1fbf6b','#2b6fe0','#d63a2f','#ffd21a','#4fae2a','#ff7fb6','#8e44ad'];
 function iniciaPesca(){
   fCv=document.getElementById('fish'); fCtx=fCv.getContext('2d');
   fScore=0; document.getElementById('fish-placar').textContent='0'; fRot=0; fRod=null;
+  fFase=1; document.getElementById('fish-fase').textContent='1';
   fFish=[]; const NF=8;
   for(let i=0;i<NF;i++) fFish.push({ang:i/NF*6.2832, cor:FISH_CORES[i%FISH_CORES.length], phase:Math.random()*6.28, caught:false, r:23});
   fCv.onpointerdown=e=>{const r=fCv.getBoundingClientRect(); pescaTap((e.clientX-r.left)*(fW/r.width),(e.clientY-r.top)*(fH/r.height));};
@@ -787,6 +796,7 @@ function pescaTap(x,y){
     if(Math.hypot(x-px,y-py)<f.r+12){
       const open=(Math.sin(f.phase)+1)/2;
       if(open>0.45){ f.caught=true; fScore++; document.getElementById('fish-placar').textContent=fScore;
+        fFase=checaFase(fFase, Math.min(10,1+Math.floor(fScore/6)), 'fish-fase');
         bip(900,.1); setTimeout(()=>bip(1250,.1),90); fRod={x:px,y:py,t:1};
         setTimeout(()=>{ f.caught=false; f.ang=Math.random()*6.2832; f.phase=Math.random()*6.28; },1300);
         if(fScore>0&&fScore%8===0) festa('PESCADOR TOP!');
@@ -794,14 +804,14 @@ function pescaTap(x,y){
       break; } }
 }
 function loopPesca(){
-  fRot+=0.006;
+  fRot += 0.004 + (fFase-1)*0.0017;
   fCtx.clearRect(0,0,fW,fH);
   fCtx.fillStyle='#06304a'; fCtx.fillRect(0,0,fW,fH);
   // lago
   fCtx.fillStyle='#0d5f78'; fCtx.beginPath(); fCtx.arc(fW/2,fH/2+14,142,0,7); fCtx.fill();
   fCtx.strokeStyle='#1f9ab8'; fCtx.lineWidth=7; fCtx.stroke();
   for(let i=1;i<=3;i++){ fCtx.strokeStyle='rgba(255,255,255,.07)'; fCtx.lineWidth=2; fCtx.beginPath(); fCtx.arc(fW/2,fH/2+14,38*i,0,7); fCtx.stroke(); }
-  fFish.forEach(f=>{ f.phase+=0.07; if(!f.caught){ const [px,py]=fishPos(f); desenhaPeixe(f,px,py); } });
+  fFish.forEach(f=>{ f.phase += 0.06+(fFase-1)*0.011; if(!f.caught){ const [px,py]=fishPos(f); desenhaPeixe(f,px,py); } });
   // anzol/vara quando pesca
   if(fRod){ fRod.t-=0.04; const yTop=10, by=fRod.y-(1-fRod.t)*0;
     fCtx.strokeStyle='#cda'; fCtx.lineWidth=2; fCtx.beginPath(); fCtx.moveTo(fRod.x,yTop); fCtx.lineTo(fRod.x, by); fCtx.stroke();
@@ -865,10 +875,10 @@ function loopMartelo(){
    JOGO 8 — CORRIDA DO XLR8 (desviar dos vasos)
    ================================================================= */
 const LANES=3;
-let rCv,rCtx,rRAF=null,rLane=1,rObs=[],rSpeed=2.2,rScore=0,rVidas=3,rTick=0,rImg=null,rFim=false;
+let rCv,rCtx,rRAF=null,rLane=1,rObs=[],rSpeed=2.2,rScore=0,rVidas=3,rTick=0,rImg=null,rFim=false,rFase=1;
 function iniciaCorrida(){
   rCv=document.getElementById('corrida'); rCtx=rCv.getContext('2d');
-  rLane=1; rObs=[]; rSpeed=2.2; rScore=0; rVidas=3; rTick=0; rFim=false;
+  rLane=1; rObs=[]; rSpeed=2.2; rScore=0; rVidas=3; rTick=0; rFim=false; rFase=1; document.getElementById('corr-fase').textContent='1';
   if(!rImg){ rImg=new Image(); rImg.src=ART_IMG['xlr8'].img; }
   rCv.onpointerdown=e=>{ if(rFim){ iniciaCorrida(); return; } const r=rCv.getBoundingClientRect();
     if((e.clientX-r.left) < r.width/2) rLane=Math.max(0,rLane-1); else rLane=Math.min(LANES-1,rLane+1); bip(520,.04); };
@@ -884,8 +894,10 @@ function loopCorrida(){
   for(let i=1;i<LANES;i++){ rCtx.beginPath(); rCtx.moveTo(W*i/LANES,0); rCtx.lineTo(W*i/LANES,H); rCtx.stroke(); }
   rCtx.setLineDash([]);
   if(!rFim){
-    rTick++; rScore+=rSpeed*0.05; rSpeed=Math.min(8.5, 2.2+rScore*0.012);
-    const inter=Math.max(26, Math.round(72-rScore*0.3));
+    rTick++; rScore+=rSpeed*0.05;
+    rFase=checaFase(rFase, Math.min(10,1+Math.floor(rScore/30)), 'corr-fase');
+    rSpeed=2.2+(rFase-1)*0.62;
+    const inter=Math.max(24, 68-rFase*4);
     if(rTick%inter===0) rObs.push({l:rnd(LANES), y:-40, hit:false});
     rObs.forEach(o=>o.y+=rSpeed);
     for(const o of rObs){ if(!o.hit && o.l===rLane && Math.abs(o.y-pyJ)<38){ o.hit=true; rVidas--; bip(140,.2);
@@ -929,7 +941,7 @@ function tocaMusica(){ // Brilha Brilha Estrelinha (domínio público)
 /* =================================================================
    JOGO 10 — BATE-TOUPEIRA
    ================================================================= */
-let moleInit=false,moleTimer=null,moleScore=0,moleHoles=[],moleSpeed=1100;
+let moleInit=false,moleTimer=null,moleScore=0,moleHoles=[],moleSpeed=1100,moleFase=1;
 function iniciaToupeira(){
   const g=document.getElementById('molegrid');
   if(!moleInit){ g.innerHTML=''; moleHoles=[];
@@ -939,6 +951,7 @@ function iniciaToupeira(){
     moleInit=true;
   }
   moleScore=0; document.getElementById('mole-placar').textContent='0'; moleSpeed=1100;
+  moleFase=1; document.getElementById('mole-fase').textContent='1';
   moleHoles.forEach(h=>{h.up=false; h.el.classList.remove('up','bonk');});
   paraToupeira(); proximaToupeira();
 }
@@ -947,22 +960,22 @@ function proximaToupeira(){
   const livres=moleHoles.map((h,i)=>i).filter(i=>!moleHoles[i].up);
   const qtd=Math.random()<0.3?2:1;
   for(let k=0;k<qtd && livres.length;k++){ subir(livres.splice(rnd(livres.length),1)[0]); }
-  moleSpeed=Math.max(620, moleSpeed-12);
+  moleSpeed=Math.max(480, 1150-(moleFase-1)*74);
   moleTimer=setTimeout(proximaToupeira, moleSpeed);
 }
 function subir(i){ const h=moleHoles[i]; h.up=true; h.el.classList.add('up');
   setTimeout(()=>{ if(h.up){ h.up=false; h.el.classList.remove('up'); } }, moleSpeed*0.9); }
 function bateToupeira(i){ const h=moleHoles[i]; if(!h.up)return; h.up=false; h.el.classList.remove('up'); h.el.classList.add('bonk');
   setTimeout(()=>h.el.classList.remove('bonk'),250); moleScore++; document.getElementById('mole-placar').textContent=moleScore; bip(700,.06);
-  if(moleScore>0&&moleScore%15===0) festa('FORTÃO! 💪'); }
+  moleFase=checaFase(moleFase, Math.min(10,1+Math.floor(moleScore/6)), 'mole-fase'); }
 
 /* =================================================================
    JOGO 11 — BOMBEIRO CHAMA (apagar incêndio)
    ================================================================= */
-let xCv,xCtx,xRAF=null,xBuild=[],xScore=0,xBurn=0,xTick=0,xImg=null,xSplash=[];
+let xCv,xCtx,xRAF=null,xBuild=[],xScore=0,xBurn=0,xTick=0,xImg=null,xSplash=[],xFase=1;
 function iniciaIncendio(){
   xCv=document.getElementById('fire'); xCtx=xCv.getContext('2d');
-  xScore=0; xBurn=0; xTick=0; xSplash=[];
+  xScore=0; xBurn=0; xTick=0; xSplash=[]; xFase=1; document.getElementById('fire-fase').textContent='1';
   if(!xImg){ xImg=new Image(); xImg.src=ART_IMG['chama'].img; }
   const H=420;
   const spots=[[60,H-150],[150,H-150],[240,H-150],[320,H-150],[105,H-78],[215,H-78],[300,H-78]];
@@ -984,9 +997,10 @@ function loopIncendio(){
   // Chama mascote no canto
   if(xImg&&xImg.complete) xCtx.drawImage(xImg,4,4,82,82);
   // acende fogo num prédio ok (ritmo aumenta)
-  const interval=Math.max(40, Math.round(125-xScore*2.5));
+  xFase=checaFase(xFase, Math.min(10,1+Math.floor(xScore/6)), 'fire-fase');
+  const interval=Math.max(36, 132-(xFase-1)*11);
   if(xTick%interval===0){ const oks=xBuild.filter(b=>b.state==='ok'); if(oks.length){ const b=oks[rnd(oks.length)];
-    b.state='fogo'; b.ft=Math.max(150,260-xScore*2); b.fs=10; } }
+    b.state='fogo'; b.ft=Math.max(135,285-(xFase-1)*16); b.fs=10; } }
   // atualiza estados
   xBuild.forEach(b=>{
     if(b.state==='fogo'){ b.fs=Math.min(30,b.fs+0.16); b.ft--; if(b.ft<=0){ b.state='queimado'; b.rg=260; xBurn++; bip(110,.28); } }
